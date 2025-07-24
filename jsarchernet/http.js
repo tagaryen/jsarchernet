@@ -433,11 +433,12 @@ class HttpResponse {
             
             this.body = Buffer.alloc(0);
             this.contentType = this.headers['content-type'];
+            this.contentType = this.contentType?this.contentType:"text/plain"
             this.contentLength = -1;
             this.chunked = false;
             this.chunkedBuf = Buffer.alloc(0);
             if(!this.contentType) {
-                throw new HttpError(400, "Bad Request")
+                throw new HttpError(502, "Bad Request")
             }
             if('content-length' in this.headers) {
                 this.chunked = false;
@@ -475,15 +476,15 @@ class HttpResponse {
         let ret = {statusCode: 200, statusMsg: "", version: "", headers: {}, body: null};
         let head = lines[0].toString('utf-8').trim();
         let heads = head.split(' ');
-        if(heads.length < 2 || heads.length > 3) {
+        if(heads.length < 2) {
             throw new HttpError(502, "Bad Gateway")
         }
         ret.version = heads[0].trim();
         ret.statusCode = parseInt(heads[1].trim());
-        if(heads.length === 3) {
-            ret.statusMsg = heads[2].trim();
-        } else {
+        if(heads.length === 2) {
             ret.statusMsg = http_status_to_message(ret.statusCode);
+        } else {
+            ret.statusMsg = heads.slice(2, heads.length).join(' ').trim();
         }
 
         let remain = null;
