@@ -4,7 +4,7 @@ network framework. http(s) server and client, support openssl 1.3(gmssl)
 ## examples  
 http client  
 ``` js
-const {http, HttpError} = require('../jsarchernet')
+const {http, HttpError} = require('jsarchernet')
 
 let res = http.request("https://www.zhihu.com", 
     {
@@ -17,6 +17,8 @@ console.log(res.body.toString('utf-8'))
 ```
 http server
 ``` js
+const {http, HttpError} = require('jsarchernet')
+
 http.createHttpServer("127.0.0.1", 9607, 0, (req, res) => {
     console.log(req.body.toString('utf-8'));
     res.setBody('{"nihao":"hello"}');
