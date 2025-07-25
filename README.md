@@ -1,6 +1,9 @@
 # jsarchernet  
 network framework. http(s) server and client, support openssl 1.3(gmssl)  
 
+## install 
+npm install jsarchernet  
+
 ## examples  
 http client  
 ``` js
