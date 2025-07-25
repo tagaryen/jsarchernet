@@ -30,12 +30,12 @@ export class HttpResponse {
 /**
  * @param {String} host
  * @param {int} port
- * @param {int} threadNum
+ * @param {{threadNum:int,sslCtx:SslContext}} options  
  * @param {function(HttpRequest, HttpResponse):void} callback
  * @param {function(String):void} errorCallback
  * @returns {void}
 */
-declare function createHttpServer(host: string, port: int, threadNum: int, callback: (req: HttpRequest, res: HttpResponse) => void, errorCallback: (err: string) => void): void;
+declare function createHttpServer(host: string, port: int, options: {threadNum:int,sslCtx:SslContext}, callback: (req: HttpRequest, res: HttpResponse) => void, errorCallback: (err: string) => void): void;
 /**
  * @param {String} url
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options

@@ -577,12 +577,12 @@ class HttpResponse {
 /**
  * @param {String} host
  * @param {int} port  
- * @param {int} threadNum  
+ * @param {{threadNum:int,sslCtx:SslContext}} options  
  * @param {function(HttpRequest, HttpResponse):void} callback
  * @param {function(String):void} errorCallback
  * @returns {void}
 */
-function createHttpServer(host, port, threadNum = 0, callback, errorCallback) {
+function createHttpServer(host, port, options = null, callback, errorCallback) {
     let chMap = {};
     /**
      * @param {int} id 
@@ -599,7 +599,13 @@ function createHttpServer(host, port, threadNum = 0, callback, errorCallback) {
             return pair;
         }
     }
-    let server = new ServerChannel();
+    if(!options) {
+        options = {threadNum:0, sslCtx: null};
+    }
+    if(!options.threadNum) {
+        options.threadNum = 0;
+    }
+    let server = new ServerChannel(options.sslCtx);
     server.on('read', (ch, data) => {
         let {request, response} = getHttpPair(ch.getId());
         try {
@@ -629,7 +635,7 @@ function createHttpServer(host, port, threadNum = 0, callback, errorCallback) {
             errorCallback(err);
         }
     });
-    server.listen(host, port, threadNum)
+    server.listen(host, port, options.threadNum)
 }
 
 /**
