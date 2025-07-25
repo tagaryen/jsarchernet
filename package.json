@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "koffi": "^2.8.9"
-  },
-  "devDependencies": {
-    "typescript": "^5.8.3"
-  }
-}

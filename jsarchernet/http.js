@@ -689,8 +689,9 @@ function request(url, options) {
         request.headers["content-length"] = options.body.length;
         request.body = body;
     }
-
-
+    if(ssl && !options.sslCtx) {
+        options.sslCtx = new SslContext();
+    }
     let response = new HttpResponse();
     let ch = new Channel(options.sslCtx);
     ch.on('connect', () => {

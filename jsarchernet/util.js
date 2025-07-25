@@ -1,6 +1,4 @@
 function isInteger(n) {
-    console.log(isNaN(n))
-    console.log((n%1 === 0))
     return !isNaN(n) && (n%1 === 0);
 }
 

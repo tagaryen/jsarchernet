@@ -1,37 +1,6 @@
-const {lib} = require('./lib')
-const ffi = require('koffi')
+const LIB_FUNCS = require('./lib')
 const SslContext = require('./sslcontext')
 const {isInteger} = require('./util')
-
-const NodeOnconnectCb = ffi.proto("void NodeOnconnectCb()");
-const NodeOnreadCb = ffi.proto("void NodeOnreadCb(int8_t *data, size_t data_len)");
-const NodeOnerrorCb = ffi.proto("void NodeOnerrorCb(const char *error)");
-const NodeOncloseCb = ffi.proto("void NodeOncloseCb()");
-
-
-const NodeServerOnconnectCb = ffi.proto("void NodeServerOnconnectCb(int64_t fd, const char *host, int port)");
-const NodeServerOnreadCb = ffi.proto("void NodeServerOnreadCb(int64_t fd, const char *host, int port, int8_t *data, size_t data_len)");
-const NodeServerOnerrorCb = ffi.proto("void NodeServerOnerrorCb(int64_t fd, const char *host, int port, const char *error)");
-const NodeServerOncloseCb = ffi.proto("void NodeServerOncloseCb(int64_t fd, const char *host, int port)");
-
-
-const channel_new_fd = lib.func('ARCHER_channel_new_fd', 'long long', []);
-const channel_connect = lib.func('ARCHER_channel_connect', 'const char *', ['long long', 'const char *', 'int', 'int', 
-                                                                            'const char *', 'const char *', 'const char *', 'const char *','const char *', 'const char *','const char *','int','int', 
-                                                                            ffi.pointer(NodeOnconnectCb), ffi.pointer(NodeOnreadCb), ffi.pointer(NodeOnerrorCb), ffi.pointer(NodeOncloseCb)])
-const channel_write = lib.func('ARCHER_channel_write', 'void', ['long long', 'char *', 'int'])
-const channel_close = lib.func('ARCHER_channel_close', 'void', ['long long'])
-
-
-
- 
-const server_channel_new_fd = lib.func('ARCHER_server_channel_new_fd', 'long long', []);
-const server_channel_listen = lib.func('ARCHER_server_channel_listen', 'const char *', ['long long', 'const char *', 'int', 'int', 'int',
-                                                                                        'const char *','const char *','const char *','const char *','const char *','int','int',
-                                                                                        ffi.pointer(NodeServerOnconnectCb), ffi.pointer(NodeServerOnreadCb),ffi.pointer(NodeServerOnerrorCb),ffi.pointer(NodeServerOncloseCb)]);
-const server_channel_close = lib.func('ARCHER_server_channel_close', 'void', ['long long']);
-
-
 
 const SSL_VERSION_MAX = 772;
 const SSL_VERSION_MIN = 769;
@@ -63,7 +32,6 @@ class Channel {
      * @returns {void}
     */
     connect(host, port) {
-
         if(!isInteger(port) || port < 80 || port > 65535) {
             throw new Error("invalid port " + port);
         }
@@ -85,10 +53,10 @@ class Channel {
             minVer = this.sslCtx.sslVersionMin;
         }
 
-        this.fd = channel_new_fd();
+        this.fd = LIB_FUNCS.channel_new_fd();
 
         let self = this;
-        let err_msg = channel_connect(this.fd, this.host, this.port, 
+        let err_msg = LIB_FUNCS.channel_connect(this.fd, this.host, this.port, 
             this.verifyPeer, ca, crt, key, enCrt, enKey,matchedHostname, namedCurves, maxVer, minVer,
             () => { //on_connect
                 this.isConnected = true;
@@ -103,8 +71,12 @@ class Channel {
             (data, len) => {
                 if(self.on_read_cb) {
                     try {
-                        let buf = ffi.decode(data, ffi.array('int8_t', len, 'Typed'));
-                        self.on_read_cb(Buffer.from(buf));
+                        let buf = data;
+                        if(LIB_FUNCS.isWindows) {
+                            buf = LIB_FUNCS.loader.decode(data, LIB_FUNCS.loader.array('int8_t', len, 'Typed'));
+                            buf = Buffer.from(buf);
+                        }
+                        self.on_read_cb(buf);
                     } catch(err) {
                         self.on_error(err);
                     }
@@ -115,6 +87,7 @@ class Channel {
             },
             () => {
                 this.isConnected = false;
+                this.fd = 0;
                 if(self.on_close_cb) {
                     try {
                         self.on_close_cb();
@@ -124,6 +97,8 @@ class Channel {
                 }
             },
         );
+        this.fd = 0;
+        this.isConnected = false;
         if(err_msg) {
             throw new Error(err_msg);
         }
@@ -143,7 +118,7 @@ class Channel {
         } else {
             buf = Buffer.from(data);
         }
-        channel_write(this.fd, buf, buf.length);
+        LIB_FUNCS.channel_write(this.fd, buf, buf.length);
     }
 
 
@@ -156,7 +131,7 @@ class Channel {
     */
     close() {
         if(this.connected()) {
-            channel_close(this.fd);
+            LIB_FUNCS.channel_close(this.fd);
         }
     }
 
@@ -269,10 +244,10 @@ class ServerChannel {
             minVer = this.sslCtx.sslVersionMin;
         }
 
-        this.fd = server_channel_new_fd();
+        this.fd = LIB_FUNCS.server_channel_new_fd();
 
         let self = this;
-        let err_msg = server_channel_listen(this.fd, this.host, this.port, 
+        let err_msg = LIB_FUNCS.server_channel_listen(this.fd, this.host, this.port, 
             this.ssl, threadNum, ca, crt, key, enCrt, enKey,maxVer,minVer,
             (ch_fd, host, port) => { //on_connect
                 let ch = self.__getChannel(ch_fd, host, port)
@@ -292,7 +267,10 @@ class ServerChannel {
                 }
                 if(self.on_read_cb) {
                     try {
-                        let buf = ffi.decode(data, ffi.array('int8_t', len, 'Typed'));
+                        let buf = data;
+                        if(LIB_FUNCS.isWindows) {
+                            buf = LIB_FUNCS.loader.decode(data, LIB_FUNCS.loader.array('int8_t', len, 'Typed'));
+                        }
                         self.on_read_cb(ch, Buffer.from(buf));
                     } catch(err) {
                         self.on_error(ch, err)
@@ -320,6 +298,7 @@ class ServerChannel {
                 }
             },
         );
+        this.fd = 0;
         if(err_msg) {
             throw new Error(err_msg);
         }
@@ -332,7 +311,8 @@ class ServerChannel {
     */
     close() {
         if(this.fd > 0) {
-            server_channel_close(this.fd);
+            LIB_FUNCS.server_channel_close(this.fd);
+            this.fd = 0;
         }
     }
 
