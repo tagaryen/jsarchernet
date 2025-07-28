@@ -10,7 +10,7 @@ let res = http.request("https://www.zhihu.com",
 console.log(res.statusCode)
 console.log(res.body.toString('utf-8'))
 
-http.createHttpServer("127.0.0.1", 9607, 0, (req, res) => {
+http.createHttpServer("127.0.0.1", 9607, (req, res) => {
     console.log(req.body.toString('utf-8'));
     res.setBody('{"nihao":"hello"}');
     throw new HttpError(400, "throw test");

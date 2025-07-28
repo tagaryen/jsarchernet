@@ -22,7 +22,7 @@ http server
 ``` js
 const {http, HttpError} = require('jsarchernet')
 
-http.createHttpServer("127.0.0.1", 9607, 0, (req, res) => {
+http.createHttpServer("127.0.0.1", 9607, (req, res) => {
     console.log(req.body.toString('utf-8'));
     res.setBody('{"nihao":"hello"}');
 }, (err) => {
