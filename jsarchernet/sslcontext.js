@@ -30,6 +30,15 @@ module.exports = class SslContext {
             this.matchedHostname = options.matchedHostname;
             this.namedCurves = options.namedCurves;
         }
+        if(!this.checkCrt(this.ca)) {
+            throw new Error("ca must be a Buffer");
+        }
+        if(!this.checkCrtKey(this.crt, this.key)) {
+            throw new Error("crt and key both must be Buffers");
+        }
+        if(!this.checkCrtKey(this.enCrt, this.enKey)) {
+            throw new Error("enCrt and enKey both must be Buffers");
+        }
         if(!this.checkVersion(this.sslVersionMax)) {
             this.sslVersionMax = 772;
         }
@@ -43,6 +52,23 @@ module.exports = class SslContext {
 
     checkVersion(v) {
         return isInteger(v) && 769 <= v && v <= 772;
+    }
+
+    checkCrt(c) {
+        return c ? !(c instanceof Buffer) : true;
+    }
+    
+    checkCrtKey(c, k) {
+        if(c && k) {
+            return true;
+        }
+        if(c && !k) {
+            return false;
+        }
+        if(!c && k) {
+            return false;
+        }
+        return !(c instanceof Buffer) || !(k instanceof Buffer);
     }
 }
 

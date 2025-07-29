@@ -29,3 +29,16 @@ http.createHttpServer("127.0.0.1", 9607, (req, res) => {
     console.error(err);
 })
 ```
+gmssl
+``` js
+const {SslContext} = require('jsarchernet')
+
+let ssl_ctx = new SslContext({
+        verifyPeer: true,
+        ca: fs.readFileSync('ca.crt'), //Buffer
+        crt: fs.readFileSync('sm2.crt'),
+        key: fs.readFileSync('sm2.key'),
+        enCrt: fs.readFileSync('encrypted_sm2.crt'),
+        enKey: fs.readFileSync('encrypted_sm2.key')
+    })
+```
