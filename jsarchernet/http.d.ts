@@ -38,7 +38,7 @@ export class HttpResponse {
 declare function createHttpServer(host: string, port: int, options: {threadNum:int,sslCtx:SslContext}, callback: (req: HttpRequest, res: HttpResponse) => void, errorCallback: (err: string) => void): void;
 /**
  * @param {String} url
- * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options
+ * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer|String|Object,formData:Object}} options
  * @returns {HttpResponse}
 */
 declare function request(url: string, options: {

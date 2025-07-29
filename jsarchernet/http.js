@@ -693,7 +693,13 @@ function request(url, options) {
     }
     if(options.body) {
         request.headers["content-length"] = options.body.length;
-        request.body = body;
+        if(options.body instanceof Buffer) {
+            request.body = options.body;
+        } else if(typeof(options.body) === 'string'){
+            request.body = Buffer.from(options.body, 'utf-8');
+        } else {
+            request.body = Buffer.from(JSON.stringify(options.body), 'utf-8');
+        }
     }
     if(ssl && !options.sslCtx) {
         options.sslCtx = new SslContext();
