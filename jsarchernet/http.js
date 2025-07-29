@@ -692,14 +692,23 @@ function request(url, options) {
         }
     }
     if(options.body) {
-        request.headers["content-length"] = options.body.length;
         if(options.body instanceof Buffer) {
             request.body = options.body;
+            if(!request.headers["content-type"]) {
+                request.headers["content-type"] = "application/none";
+            }
         } else if(typeof(options.body) === 'string'){
             request.body = Buffer.from(options.body, 'utf-8');
+            if(!request.headers["content-type"]) {
+                request.headers["content-type"] = "text/plain";
+            }
         } else {
             request.body = Buffer.from(JSON.stringify(options.body), 'utf-8');
+            if(!request.headers["content-type"]) {
+                request.headers["content-type"] = "application/json";
+            }
         }
+        request.headers["content-length"] = options.body.length;
     }
     if(ssl && !options.sslCtx) {
         options.sslCtx = new SslContext();
