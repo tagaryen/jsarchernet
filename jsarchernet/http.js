@@ -706,6 +706,7 @@ function request(url, options) {
     }
     let response = new HttpResponse();
     let ch = new Channel(options.sslCtx);
+    let error = null;
     ch.on('connect', () => {
         ch.write(request.toBuffer());
     });
@@ -719,7 +720,17 @@ function request(url, options) {
             ch.close();
         }
     });
+    ch.on('error', (err) => {
+        if(err instanceof Error) {
+            error = err;
+        } else {
+            error = new Error(err);
+        }
+    });
     ch.connect(host, port);
+    if(error) {
+        throw error;
+    }
     return response;
 }
 
