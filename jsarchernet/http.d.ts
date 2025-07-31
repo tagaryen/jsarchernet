@@ -13,6 +13,15 @@ export class HttpRequest {
     contentLength: number;
 }
 export class HttpResponse {
+    setStatusCode(code: int): void;
+    setContentLength(length: int): void;
+    setContentType(type: string): void;
+    setHeader(key: string, value: string): void;
+    setHeaders(headers: Object): void;
+    setBody(body: Buffer|String): void;
+}
+
+export class Response {
     version: string;
     statusCode: number;
     statusMsg: string;
@@ -20,12 +29,6 @@ export class HttpResponse {
     contentType: string;
     contentLength: number;
     body: Buffer;
-    setStatusCode(code: int): void;
-    setContentLength(length: int): void;
-    setContentType(type: string): void;
-    setHeader(key: string, value: string): void;
-    setHeaders(headers: Object): void;
-    setBody(body: Buffer|String): void;
 }
 /**
  * @param {String} host
@@ -39,14 +42,14 @@ declare function createHttpServer(host: string, port: int, options: {threadNum:i
 /**
  * @param {String} url
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer|String|Object,formData:Object}} options
- * @returns {HttpResponse}
+ * @returns {Response}
 */
 declare function request(url: string, options: {
     method: string;
     headers: {};
     sslCtx: SslContext;
     body: Buffer;
-}): HttpResponse;
+}): Response;
 import SslContext = require("./sslcontext");
 export declare namespace http {
     export { createHttpServer };

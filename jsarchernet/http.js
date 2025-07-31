@@ -638,10 +638,270 @@ function createHttpServer(host, port, options = null, callback, errorCallback) {
     server.listen(host, port, options.threadNum)
 }
 
+class Response {
+
+    constructor() {
+        this.version = "HTTP/1.1";
+        this.statusCode = 503;
+        this.statusMsg = http_status_to_message(this.statusCode);
+        this.contentType = "application/none";
+        this.headers = {
+            'Server': "ArcherNet/Nodejs",
+            'Connection': "close",
+            'Date': new Date().toDateString(),
+            'content-type': this.contentType
+        }
+        this.contentLength = 0;
+        this.chunked = false;
+        this.chunkedBuf = null;
+        this.body = Buffer.alloc(0);
+    }
+
+    /**
+     * @private
+    */
+    init() {
+        this.version = "HTTP/1.1";
+        this.statusCode = 200;
+        this.statusMsg = http_status_to_message(this.statusCode);
+        this.contentType = "application/none";
+        this.headers = {
+            'Server': "ArcherNet/Nodejs",
+            'Connection': "close",
+            'Date': new Date().toDateString(),
+            'content-type': this.contentType
+        }
+        this.contentLength = 0;
+        this.chunked = false;
+        this.chunkedBuf = null;
+        this.body = Buffer.alloc(0);
+    }
+    
+    /**
+     * @param {int} code 
+     * @returns {void}
+    */
+    setStatusCode(code) {
+        this.statusCode = code;
+        this.statusMsg = http_status_to_message(this.statusCode);
+    }
+
+    /**
+     * @param {int} length 
+     * @returns {void}
+    */
+    setContentLength(length) {
+        this.contentLength = length;
+        this.headers['content-length'] = String(length);
+    }
+
+    /**
+     * @param {String} type 
+     * @returns {void}
+    */
+    setContentType(type) {
+        this.contentType = type;
+        this.headers['content-type'] = type;
+    }
+
+    /**
+     * @param {String} key 
+     * @param {String} value 
+     * @returns {void}
+    */
+    setHeader(key, value) {
+        this.headers[key.toLowerCase()] = value;
+    }
+
+    /**
+     * @param {Object} headers 
+     * @returns {void}
+    */
+    setHeaders(headers) {
+        if(headers instanceof Object) {
+            for(let k in headers) {
+                this.headers[k.toLowerCase()] = headers[k];
+            }
+        }
+    }
+
+    /**
+     * @param {Buffer|String} body 
+    */
+    setBody(body) {
+        let buf;
+        if (body instanceof Buffer) {
+            buf = body;
+        } else {
+            buf = Buffer.from(body);
+        }
+        this.setContentLength(buf.length);
+        this.body = buf;
+    }
+
+    /**
+     * @private
+     * @param {Buffer} rawData 
+    */
+    parse(rawData) {
+        if(!rawData) {
+            return ;
+        }
+        try {
+            let ret = this.parseHead(rawData);
+            this.version = ret.version;
+            this.statusCode = ret.statusCode;
+            this.statusMsg = ret.statusMsg;
+            this.headers = ret.headers;
+            this.headParsed = true;
+            
+            this.body = Buffer.alloc(0);
+            this.contentType = this.headers['content-type'];
+            this.contentType = this.contentType?this.contentType:"text/plain"
+            this.contentLength = -1;
+            this.chunked = false;
+            this.chunkedBuf = Buffer.alloc(0);
+            if(!this.contentType) {
+                throw new HttpError(502, "Bad Request")
+            }
+            if('content-length' in this.headers) {
+                this.chunked = false;
+                this.contentLength = Number(this.headers['content-length'])
+            }
+            if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
+                this.chunked = true;
+                this.contentLength = -1;
+            }
+            this.finished = false;
+    
+            if(ret.body) {
+                this.parseContent(ret.body)
+            }
+            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
+                this.finished = true;
+            }  
+        } catch(err) {
+            console.log(err);
+            throw new HttpError(502, "Bad Gateway " + err);
+        }   
+    }
+
+    
+    /**
+     * @private
+     * @param {Buffer} rawData 
+     * @returns {{statusCode: int, statusMsg:String, version: String, headers: {}}}
+    */
+    parseHead(rawData) {
+        let lines = bufferSplit(rawData, '\n')
+        if(lines.length < 4) {
+            throw new HttpError(502, "Bad Gateway")
+        }
+        let ret = {statusCode: 200, statusMsg: "", version: "", headers: {}, body: null};
+        let head = lines[0].toString('utf-8').trim();
+        let heads = head.split(' ');
+        if(heads.length < 2) {
+            throw new HttpError(502, "Bad Gateway")
+        }
+        ret.version = heads[0].trim();
+        ret.statusCode = parseInt(heads[1].trim());
+        if(heads.length === 2) {
+            ret.statusMsg = http_status_to_message(ret.statusCode);
+        } else {
+            ret.statusMsg = heads.slice(2, heads.length).join(' ').trim();
+        }
+
+        let remain = null;
+        for(let i = 1; i < lines.length; i++) {
+            let l = lines[i].toString('utf-8').trim();
+            if(l === '') {
+                if(i === lines.length - 1) {
+                    return ;
+                }
+                remain = bufferJoin(lines.slice(i + 1, lines.length), '\n');
+                break ;
+            }
+            let kv = l.indexOf(':');
+            if(l <= 0) {
+                throw new HttpError(502, "Bad Gateway")
+            }
+            ret.headers[l.substring(0, kv).trim().toLowerCase()] = l.substring(kv + 1, l.length).trim();
+        }
+        ret.body = remain;
+        return ret;
+    }
+    
+    /**
+     * @private
+     * @param {Buffer} rawData 
+     * @returns {{url:String, queries: {}}}
+    */
+    parseContent(rawData) {
+        if(this.chunked) {
+            this.chunkedBuf = Buffer.concat([this.chunkedBuf, rawData]);
+            let len = this.chunkedBuf.length;
+            while(true) {
+                let lf = this.chunkedBuf.indexOf('\n')
+                if (lf <= 0) {
+                    return 
+                }
+                let chunkedLen = parseInt(this.chunkedBuf.slice(0, lf).toString('utf-8').trim(), 16); 
+                if (chunkedLen === 0) {
+                    this.finished = true;
+                    return ;
+                }
+                if((len - lf - 1) < chunkedLen) {
+                    return ;
+                } else {
+                    this.body = Buffer.concat([this.body, this.chunkedBuf.slice(lf+1, lf+1+chunkedLen)]);
+                    this.chunkedBuf = this.chunkedBuf.slice(lf+1+chunkedLen, len);
+                    let off = 0;
+                    if(this.chunkedBuf[off] === 13) {
+                        off++;
+                    }
+                    if(this.chunkedBuf[off] === 10) {
+                        off++;
+                    }
+                    if(off > 0) {
+                        this.chunkedBuf = this.chunkedBuf.slice(off, len);
+                    }
+                }
+            }
+        } else {
+            if(this.body.length + rawData.length > this.contentLength) {
+                this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
+            } else {
+                this.body = Buffer.concat([this.chunkedBuf, rawData]);
+            }
+            if(this.body.length >= this.contentLength) {
+                this.finished = true;
+            }
+        }
+    }
+
+    /**
+     * @private
+     * @returns {Buffer}
+    */
+    toBuffer() {
+        let send = this.version + " " + this.statusCode + " " + this.statusMsg + "\r\n";
+        for(let k in this.headers) {
+            send += k + ": " + this.headers[k] + "\r\n";
+        }
+        send += "\r\n";
+        let buf = Buffer.from(send, 'utf-8');
+        if(this.contentLength > 0) {
+            buf = Buffer.concat([buf, this.body]);
+        }
+        return buf;
+    }
+}
+
+
 /**
  * @param {String} url 
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options 
- * @returns {HttpResponse}
+ * @returns {Response}
 */
 function request(url, options) {
     let uri = "/", ssl = false, host = "127.0.0.1", port = 80;
@@ -713,7 +973,7 @@ function request(url, options) {
     if(ssl && !options.sslCtx) {
         options.sslCtx = new SslContext();
     }
-    let response = new HttpResponse();
+    let response = new Response();
     let ch = new Channel(options.sslCtx);
     let error = null;
     ch.on('connect', () => {
@@ -748,6 +1008,7 @@ module.exports = {
     HttpError,
     HttpRequest,
     HttpResponse,
+    Response,
     http: {
         createHttpServer,
         request
