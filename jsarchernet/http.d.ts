@@ -50,9 +50,23 @@ declare function request(url: string, options: {
     sslCtx: SslContext;
     body: Buffer;
 }): Response;
+/**
+ * @param {String} url
+ * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer|String|Object,formData:Object}} options
+ * @param {function(Response, err):void} onresponse
+ * @param {function(Buffer):void} ondata
+ * @returns {void}
+*/
+declare function streamRequest(url: string, options: {
+    method: string;
+    headers: {};
+    sslCtx: SslContext;
+    body: Buffer;
+}, onresponse: (res: Response, err: Error) => void, ondata: (chunk: Buffer) => void): void;
 import SslContext = require("./sslcontext");
 export declare namespace http {
     export { createHttpServer };
     export { request };
+    export { streamRequest };
 }
 export {};

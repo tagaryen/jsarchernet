@@ -246,8 +246,8 @@ class HttpRequest {
         }
         if(this.chunked) {
             this.chunkedBuf = Buffer.concat([this.chunkedBuf, rawData]);
-            let len = this.chunkedBuf.length;
             while(true) {
+                let len = this.chunkedBuf.length;
                 let lf = this.chunkedBuf.indexOf('\n')
                 if (lf <= 0) {
                     return 
@@ -515,8 +515,8 @@ class HttpResponse {
     parseContent(rawData) {
         if(this.chunked) {
             this.chunkedBuf = Buffer.concat([this.chunkedBuf, rawData]);
-            let len = this.chunkedBuf.length;
             while(true) {
+                let len = this.chunkedBuf.length;
                 let lf = this.chunkedBuf.indexOf('\n')
                 if (lf <= 0) {
                     return 
@@ -777,7 +777,7 @@ class Response {
             if(ret.body) {
                 this.parseContent(ret.body)
             }
-            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
+            if(this.contentLength > 0 && this.this.body.length >= this.contentLength) {
                 this.finished = true;
             }  
         } catch(err) {
@@ -839,8 +839,8 @@ class Response {
     parseContent(rawData) {
         if(this.chunked) {
             this.chunkedBuf = Buffer.concat([this.chunkedBuf, rawData]);
-            let len = this.chunkedBuf.length;
             while(true) {
+                let len = this.chunkedBuf.length;
                 let lf = this.chunkedBuf.indexOf('\n')
                 if (lf <= 0) {
                     return 
@@ -897,13 +897,11 @@ class Response {
     }
 }
 
-
 /**
  * @param {String} url 
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options 
- * @returns {Response}
 */
-function request(url, options) {
+function parseRequest(url, options) {
     let uri = "/", ssl = false, host = "127.0.0.1", port = 80;
     let l = url;
     if(l.startsWith("https://")) {
@@ -975,34 +973,82 @@ function request(url, options) {
     }
     let response = new Response();
     let ch = new Channel(options.sslCtx);
-    let error = null;
-    ch.on('connect', () => {
-        ch.write(request.toBuffer());
+    return {uri, host, port, request, response, ch, ssl};
+}
+
+/**
+ * @param {String} url 
+ * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options 
+ * @returns {Response}
+*/
+function request(url, options) {
+    let req = parseRequest(url, options)
+    let error = {haserror: false, err: null};
+    req.ch.on('connect', () => {
+        req.ch.write(req.request.toBuffer());
     });
-    ch.on("read", (data) => {
-        if(!response.headParsed) {
-            response.parse(data)
+    req.ch.on("read", (data) => {
+        if(!req.response.headParsed) {
+            req.response.parse(data)
         } else {
-            response.parseContent(data)
+            req.response.parseContent(data)
         }
-        if(response.finished) {
+        if(req.response.finished) {
             ch.close();
         }
     });
-    ch.on('error', (err) => {
+    req.ch.on('error', (err) => {
         if(err instanceof Error) {
-            error = err;
+            error.haserror = true;
+            error.err = err;
         } else {
-            error = new Error(err);
+            error.haserror = true;
+            error.err = new Error(err);
         }
     });
-    ch.connect(host, port);
-    if(error) {
+    req.ch.connect(req.host, req.port);
+    if(error.haserror) {
         throw error;
     }
-    return response;
+    return req.response;
 }
 
+/**
+ * @param {String} url 
+ * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options 
+ * @param {function(Response, err):void} onresponse
+ * @param {function(Buffer):void} ondata
+ * @returns {void}
+*/
+function streamRequest(url, options, onresponse, ondata) {
+    let req = parseRequest(url, options)
+    req.ch.on('connect', () => {
+        req.ch.write(req.request.toBuffer());
+    });
+    req.ch.on("read", (data) => {
+        if(!req.response.headParsed) {
+            req.response.parse(data);
+            onresponse(req.response, null);
+        } else {
+            req.response.parseContent(data)
+            if(req.response.body.length > 0) {
+                ondata(req.response.body);
+                req.response.body = Buffer.alloc(0);
+            }
+        }
+        if(req.response.finished) {
+            ch.close();
+        }
+    });
+    req.ch.on('error', (err) => {
+        let error = err;
+        if(!(err instanceof Error)) {
+            error = new Error(err);
+        }
+        onresponse(req.response, error);
+    });
+    req.ch.connect(req.host, req.port);
+}
 
 module.exports = {
     HttpError,
@@ -1011,6 +1057,7 @@ module.exports = {
     Response,
     http: {
         createHttpServer,
-        request
+        request,
+        streamRequest
     }
 }

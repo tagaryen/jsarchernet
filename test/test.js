@@ -1,14 +1,19 @@
 
 const {http, HttpError} = require('../jsarchernet')
+const fs = require('fs')
 
-let res = http.request("https://www.zhihu.com", 
+let res = http.streamRequest("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js", 
     {
-        method: "GET",
-        headers: {"User-Token": "17c858a9d7574fc78f6dc5b404a20d88"}
-    });
+        method: "GET"
+    },
+    (res, err) => {
+        console.log(res.statusCode)
+    },
+    (chunk) => {
+        fs.appendFileSync('./tmp.txt', chunk, 'utf-8');
+    }
+);
 
-console.log(res.statusCode)
-console.log(res.body.toString('utf-8'))
 
 // http.createHttpServer("127.0.0.1", 9607, (req, res) => {
 //     console.log(req.body.toString('utf-8'));
