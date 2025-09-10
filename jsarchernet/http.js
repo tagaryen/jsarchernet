@@ -1028,11 +1028,21 @@ function streamRequest(url, options, onresponse, ondata) {
     req.ch.on("read", (data) => {
         if(!req.response.headParsed) {
             req.response.parse(data);
-            onresponse(req.response, null);
+            if(onresponse && (onresponse instanceof Function)) {
+                onresponse(req.response, null);
+            }
+            if(req.response.body.length > 0) {
+                if(ondata && (ondata instanceof Function)) {
+                    ondata(req.response.body);
+                }
+                req.response.body = Buffer.alloc(0);
+            }
         } else {
             req.response.parseContent(data)
             if(req.response.body.length > 0) {
-                ondata(req.response.body);
+                if(ondata && (ondata instanceof Function)) {
+                    ondata(req.response.body);
+                }
                 req.response.body = Buffer.alloc(0);
             }
         }
