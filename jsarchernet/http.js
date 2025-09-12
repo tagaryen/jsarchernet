@@ -777,11 +777,10 @@ class Response {
             if(ret.body) {
                 this.parseContent(ret.body)
             }
-            if(this.contentLength > 0 && this.this.body.length >= this.contentLength) {
+            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
                 this.finished = true;
             }  
         } catch(err) {
-            console.log(err);
             throw new HttpError(502, "Bad Gateway " + err);
         }   
     }
@@ -994,7 +993,7 @@ function request(url, options) {
             req.response.parseContent(data)
         }
         if(req.response.finished) {
-            ch.close();
+            req.ch.close();
         }
     });
     req.ch.on('error', (err) => {
@@ -1047,7 +1046,7 @@ function streamRequest(url, options, onresponse, ondata) {
             }
         }
         if(req.response.finished) {
-            ch.close();
+            req.ch.close();
         }
     });
     req.ch.on('error', (err) => {
