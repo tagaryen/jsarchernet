@@ -10,7 +10,7 @@ export class Channel {
     connected(): bool;
     on(event: "connect", callback: () => void): void;
     on(event: "read", callback: (data: Buffer) => void): void;
-    on(event: "error", callback: (err: string) => void): void;
+    on(event: "error", callback: (err: Error) => void): void;
     on(event: "close", callback: () => void): void;
 }
 export class ServerChannel {
@@ -22,7 +22,7 @@ export class ServerChannel {
     close(): void;
     on(event: "connect", callback: (channel: Channel) => void): void;
     on(event: "read", callback: (channel: Channel, data: Buffer) => void): void;
-    on(event: "error", callback: (channel: Channel, err: string) => void): void;
+    on(event: "error", callback: (channel: Channel, err: Error) => void): void;
     on(event: "close", callback: (channel: Channel) => void): void;
 }
 import SslContext = require("./sslcontext");

@@ -175,15 +175,19 @@ class Channel {
      * @returns {void}
     */
     on_error(err) {
+        let error = err;
+        if(err && !(err instanceof Error)) {
+            error = new Error(err);
+        }
         if(this.on_error_cb) {
             try {
-                this.on_error_cb(err);
+                this.on_error_cb(error);
             } catch(ex) {
-                console.error(err);
+                console.error(error);
                 console.error(ex);
             }
         } else {
-            console.error(err);
+            console.error(error);
         }
     }
 }
@@ -315,7 +319,7 @@ class ServerChannel {
     
     /**
      * @param {"connect"|"read"|"error"|"close"} event 
-     * @param {function(Channel, null|Buffer|String):void} callback 
+     * @param {function(Channel, null|Buffer|Error):void} callback 
      * @returns {void}
     */
     on(event, callback) {
@@ -347,15 +351,19 @@ class ServerChannel {
      * @returns {void}
     */
     on_error(channel, err) {
+        let error = err;
+        if(err && !(err instanceof Error)) {
+            error = new Error(err);
+        }
         if(this.on_error_cb) {
             try {
-                this.on_error_cb(channel, err);
+                this.on_error_cb(channel, error);
             } catch(ex) {
-                console.log(err);
+                console.log(error);
                 console.log(ex);
             }
         } else {
-            console.log(err);
+            console.log(error);
         }
     }
 

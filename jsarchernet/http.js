@@ -145,10 +145,12 @@ class HttpRequest {
             if('content-length' in this.headers) {
                 this.chunked = false;
                 this.contentLength = Number(this.headers['content-length'])
-            }
-            if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
+            } else if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
                 this.chunked = true;
                 this.contentLength = -1;
+            } else {
+                this.chunked = false;
+                this.contentLength = 0;
             }
             this.finished = false;
     
@@ -756,16 +758,15 @@ class Response {
             this.contentLength = -1;
             this.chunked = false;
             this.chunkedBuf = Buffer.alloc(0);
-            if(!this.contentType) {
-                throw new HttpError(502, "Bad Request")
-            }
             if('content-length' in this.headers) {
                 this.chunked = false;
                 this.contentLength = Number(this.headers['content-length'])
-            }
-            if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
+            } else if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
                 this.chunked = true;
                 this.contentLength = -1;
+            } else {
+                this.chunked = false;
+                this.contentLength = 0;
             }
             this.finished = false;
     
