@@ -214,7 +214,7 @@ class ServerChannel {
      * @param {int} port server port
      * @returns {void}
     */
-    listen(host, port, threadNum=0) {
+    listen(host, port) {
 
         if(!isInteger(port) || port < 80 || port > 65535) {
             throw new Error("invalid port " + port);
@@ -226,12 +226,8 @@ class ServerChannel {
 
         this.host = host;
         this.port = port;
-        if(threadNum < 1) {
-            threadNum = 0
-        } 
-        if(threadNum > 256) {
-            threadNum = 256;
-        }
+        //v8 api lock exception
+        let threadNum = 0;
 
         let ca = null, crt = null, key = null, enCrt = null, enKey = null, maxVer = SSL_VERSION_MAX, minVer = SSL_VERSION_MIN;
         if(this.sslCtx) {

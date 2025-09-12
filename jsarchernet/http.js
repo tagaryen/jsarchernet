@@ -159,7 +159,7 @@ class HttpRequest {
                 this.finished = true;
             }     
         } catch(err) {
-            throw new HttpError(400, "Bad Request")
+            throw err;
         }
     }
 
@@ -575,14 +575,12 @@ class HttpResponse {
 
 
 /**
- * @param {String} host
- * @param {int} port  
- * @param {{threadNum:int,sslCtx:SslContext}} options  
+ * @param {{host: String, port: int, sslCtx:SslContext}} options  
  * @param {function(HttpRequest, HttpResponse):void} callback
- * @param {function(String):void} errorCallback
+ * @param {function(Error):void} errorCallback
  * @returns {void}
 */
-function createHttpServer(host, port, options = null, callback, errorCallback) {
+function createHttpServer(options = null, callback, errorCallback) {
     let chMap = {};
     /**
      * @param {int} id 
@@ -600,10 +598,7 @@ function createHttpServer(host, port, options = null, callback, errorCallback) {
         }
     }
     if(!options) {
-        options = {threadNum:0, sslCtx: null};
-    }
-    if(!options.threadNum) {
-        options.threadNum = 0;
+        options = {host: "127.0.0.1", port: 9607, sslCtx: null};
     }
     let server = new ServerChannel(options.sslCtx);
     server.on('read', (ch, data) => {
@@ -635,7 +630,7 @@ function createHttpServer(host, port, options = null, callback, errorCallback) {
             errorCallback(err);
         }
     });
-    server.listen(host, port, options.threadNum)
+    server.listen(options.host, options.port)
 }
 
 class Response {

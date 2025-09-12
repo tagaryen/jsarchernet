@@ -31,14 +31,12 @@ export class Response {
     body: Buffer;
 }
 /**
- * @param {String} host
- * @param {int} port
- * @param {{threadNum:int,sslCtx:SslContext}} options  
+ * @param {{host:string,port:int,sslCtx:SslContext}} options  
  * @param {function(HttpRequest, HttpResponse):void} callback
- * @param {function(String):void} errorCallback
+ * @param {function(Error):void} errorCallback
  * @returns {void}
 */
-declare function createHttpServer(host: string, port: int, options: {threadNum:int,sslCtx:SslContext}, callback: (req: HttpRequest, res: HttpResponse) => void, errorCallback: (err: string) => void): void;
+declare function createHttpServer(options: {host:string,port:int,sslCtx:SslContext}, callback: (req: HttpRequest, res: HttpResponse) => void, errorCallback: (err: Error) => void): void;
 /**
  * @param {String} url
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer|String|Object,formData:Object}} options
