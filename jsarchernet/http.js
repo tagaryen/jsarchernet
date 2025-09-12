@@ -104,7 +104,7 @@ class HttpRequest {
     init() {
         this.method = "GET";
         this.url = "/";
-        this.version = "HTTP/1.1";
+        this.version = "HTTP/1.0";
         this.queries = {};
         this.headers = {'content-type':'application/none','content-length':"0"};
         this.body = Buffer.alloc(0);
@@ -139,9 +139,6 @@ class HttpRequest {
             this.contentLength = -1;
             this.chunked = false;
             this.chunkedBuf = Buffer.alloc(0);
-            if(!this.contentType) {
-                throw new HttpError(400, "Bad Request")
-            }
             if('content-length' in this.headers) {
                 this.chunked = false;
                 this.contentLength = Number(this.headers['content-length'])
@@ -157,9 +154,9 @@ class HttpRequest {
             if(parsed.body) {
                 this.parseContent(parsed.body)
             }
-            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
+            if(this.contentLength >= 0 && this.body.length >= this.contentLength) {
                 this.finished = true;
-            }     
+            }
         } catch(err) {
             throw err;
         }
@@ -277,6 +274,10 @@ class HttpRequest {
                 }
             }
         } else {
+            if(this.body.length >= this.contentLength) {
+                this.finished = true;
+                return;
+            }
             if(this.body.length + rawData.length > this.contentLength) {
                 this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
             } else {
@@ -304,7 +305,7 @@ class HttpRequest {
         }
         let send = this.method + " " + url + " " + this.version + "\r\n";
         for(let k in this.headers) {
-            send += k + ": " + this.headers[k] + "\r\n";
+            send += k + ":" + this.headers[k] + "\r\n";
         }
         send += "\r\n";
         let buf = Buffer.from(send, 'utf-8');
@@ -324,9 +325,9 @@ class HttpResponse {
         this.statusMsg = http_status_to_message(this.statusCode);
         this.contentType = "application/none";
         this.headers = {
-            'Server': "ArcherNet/Nodejs",
-            'Connection': "close",
-            'Date': new Date().toDateString(),
+            'server': "ArcherNet/Nodejs",
+            'connection': "close",
+            'date': new Date().toUTCString(),
             'content-type': this.contentType
         }
         this.contentLength = 0;
@@ -344,9 +345,9 @@ class HttpResponse {
         this.statusMsg = http_status_to_message(this.statusCode);
         this.contentType = "application/none";
         this.headers = {
-            'Server': "ArcherNet/Nodejs",
-            'Connection': "close",
-            'Date': new Date().toDateString(),
+            'server': "ArcherNet/Nodejs",
+            'connection': "close",
+            'date': new Date().toUTCString(),
             'content-type': this.contentType
         }
         this.contentLength = 0;
@@ -459,8 +460,7 @@ class HttpResponse {
                 this.finished = true;
             }  
         } catch(err) {
-            console.log(err);
-            throw new HttpError(502, "Bad Gateway " + err);
+            throw err;
         }   
     }
 
@@ -568,7 +568,9 @@ class HttpResponse {
         }
         send += "\r\n";
         let buf = Buffer.from(send, 'utf-8');
-        if(this.contentLength > 0) {
+        if(this.contentLength && this.contentLength > 0) {
+            buf = Buffer.concat([buf, this.body]);
+        } else if(this.headers['transfer-encoding'] === 'chunked') {
             buf = Buffer.concat([buf, this.body]);
         }
         return buf;
@@ -615,7 +617,11 @@ function createHttpServer(options = null, callback, errorCallback) {
                 if(callback) {
                     callback(request, response);
                 }
+                response.version = request.version;
                 ch.write(response.toBuffer());
+                if(request.version === "HTTP/1.0") {
+                    ch.close();
+                }
             }
         } catch(err) {
             response.setContentType("text/plain");
@@ -648,7 +654,7 @@ class Response {
             'Date': new Date().toDateString(),
             'content-type': this.contentType
         }
-        this.contentLength = 0;
+        this.contentLength = -1;
         this.chunked = false;
         this.chunkedBuf = null;
         this.body = Buffer.alloc(0);
@@ -668,7 +674,7 @@ class Response {
             'Date': new Date().toDateString(),
             'content-type': this.contentType
         }
-        this.contentLength = 0;
+        this.contentLength = -1;
         this.chunked = false;
         this.chunkedBuf = null;
         this.body = Buffer.alloc(0);
@@ -773,7 +779,7 @@ class Response {
             if(ret.body) {
                 this.parseContent(ret.body)
             }
-            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
+            if(this.contentLength >= 0 && this.body.length >= this.contentLength) {
                 this.finished = true;
             }  
         } catch(err) {
@@ -863,6 +869,10 @@ class Response {
                 }
             }
         } else {
+            if(this.body.length >= this.contentLength) {
+                this.finished = true;
+                return;
+            }
             if(this.body.length + rawData.length > this.contentLength) {
                 this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
             } else {

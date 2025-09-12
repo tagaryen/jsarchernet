@@ -223,10 +223,6 @@ class ServerChannel {
         if(!isInteger(port) || port < 80 || port > 65535) {
             throw new Error("invalid port " + port);
         }
-        
-        if(!isInteger(threadNum)) {
-            throw new Error("invalid threadNum " + threadNum);
-        }
 
         this.host = host;
         this.port = port;
