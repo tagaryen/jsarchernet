@@ -1,6 +1,6 @@
 {
   "name": "jsarchernet",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "description": "network framework",
   "main": "index.js",
   "directories": {

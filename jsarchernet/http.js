@@ -1007,7 +1007,7 @@ function request(url, options) {
     });
     req.ch.connect(req.host, req.port);
     if(error.haserror) {
-        throw error;
+        throw error.err;
     }
     return req.response;
 }
