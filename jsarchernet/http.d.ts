@@ -2,6 +2,10 @@ export class HttpError extends Error {
     constructor(code: int, msg: string);
     code: int;
 }
+export class StreamBody {
+    write(chunk: string | Buffer): void;
+    end(): void;
+}
 export class HttpRequest {
     method: string;
     url: string;
@@ -18,7 +22,8 @@ export class HttpResponse {
     setContentType(type: string): void;
     setHeader(key: string, value: string): void;
     setHeaders(headers: Object): void;
-    setBody(body: Buffer|String): void;
+    sendBody(body: Buffer|String): void;
+    streamBody(): StreamBody
 }
 
 export class Response {

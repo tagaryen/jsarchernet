@@ -355,11 +355,11 @@ class ServerChannel {
             try {
                 this.on_error_cb(channel, error);
             } catch(ex) {
-                console.log(error);
-                console.log(ex);
+                console.error(error);
+                console.error(ex);
             }
         } else {
-            console.log(error);
+            console.error(error);
         }
     }
 

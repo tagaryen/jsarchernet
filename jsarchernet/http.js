@@ -84,6 +84,37 @@ function http_status_to_message(code)  {
     return codeMap[code]
 }
 
+class StreamBody {
+    /**
+     * @param {HttpResponse} response 
+     * @param {Channel} ch 
+     * 
+    */
+    constructor(response, ch) {
+        this.response = response;
+        this.ch = ch;
+    }
+
+    /**
+     * @param {string|Buffer} chunk 
+    */
+    write(chunk) {
+        if(!chunk) {
+            return ;
+        }
+        if(!(chunk instanceof Buffer)) {
+            chunk = Buffer.from(chunk, 'utf-8');
+        }
+        let lenHex = chunk.length.toString(16);
+        this.ch.write(Buffer.concat([Buffer.from('\r\n'+lenHex+'\r\n'), chunk]));
+    }
+
+    end() {
+        this.ch.write(Buffer.from('\r\n0\r\n\r\n'));
+        this.ch = undefined;
+        this.response.reset();
+    }
+}
 
 class HttpRequest {
     constructor() {
@@ -319,7 +350,11 @@ class HttpRequest {
 
 class HttpResponse {
 
-    constructor() {
+    /**
+     * @param {HttpRequest} request 
+     * @param {Channel} ch 
+    */
+    constructor(request, ch) {
         this.version = "HTTP/1.1";
         this.statusCode = 200;
         this.statusMsg = http_status_to_message(this.statusCode);
@@ -334,6 +369,8 @@ class HttpResponse {
         this.chunked = false;
         this.chunkedBuf = null;
         this.body = Buffer.alloc(0);
+        this.request = request;
+        this.ch = ch;
     }
 
     /**
@@ -354,6 +391,7 @@ class HttpResponse {
         this.chunked = false;
         this.chunkedBuf = null;
         this.body = Buffer.alloc(0);
+        this.request.init()
     }
     
     /**
@@ -405,9 +443,20 @@ class HttpResponse {
     }
 
     /**
+     * @returns {StreamBody} 
+    */
+    streamBody() {
+        this.headers['transfer-encoding'] = 'chunked';
+        delete this.headers['content-length'];
+        this.body = Buffer.alloc(0);
+        this.ch.write(this.toBuffer())
+        return new StreamBody(this, ch);
+    }
+
+    /**
      * @param {Buffer|String} body 
     */
-    setBody(body) {
+    sendBody(body) {
         let buf;
         if (body instanceof Buffer) {
             buf = body;
@@ -416,145 +465,18 @@ class HttpResponse {
         }
         this.setContentLength(buf.length);
         this.body = buf;
+        this.ch.write(this.toBuffer());
+        this.reset();
     }
 
-    /**
-     * @private
-     * @param {Buffer} rawData 
-    */
-    parse(rawData) {
-        if(!rawData) {
+    reset() {
+        if(this.version === 'HTTP/1.0') {
+            this.request = undefined;
+            this.ch.close();
+            this.ch = undefined;
             return ;
         }
-        try {
-            let ret = this.parseHead(rawData);
-            this.version = ret.version;
-            this.statusCode = ret.statusCode;
-            this.statusMsg = ret.statusMsg;
-            this.headers = ret.headers;
-            this.headParsed = true;
-            
-            this.body = Buffer.alloc(0);
-            this.contentType = this.headers['content-type'];
-            this.contentType = this.contentType?this.contentType:"text/plain"
-            this.contentLength = -1;
-            this.chunked = false;
-            this.chunkedBuf = Buffer.alloc(0);
-            if(!this.contentType) {
-                throw new HttpError(502, "Bad Request")
-            }
-            if('content-length' in this.headers) {
-                this.chunked = false;
-                this.contentLength = Number(this.headers['content-length'])
-            }
-            if('transfer-encoding' in this.headers && this.headers['transfer-encoding'] === 'chunked') {
-                this.chunked = true;
-                this.contentLength = -1;
-            }
-            this.finished = false;
-    
-            if(ret.body) {
-                this.parseContent(ret.body)
-            }
-            if(this.contentLength > 0 && this.body.length >= this.contentLength) {
-                this.finished = true;
-            }  
-        } catch(err) {
-            throw err;
-        }   
-    }
-
-    
-    /**
-     * @private
-     * @param {Buffer} rawData 
-     * @returns {{statusCode: int, statusMsg:String, version: String, headers: {}}}
-    */
-    parseHead(rawData) {
-        let lines = bufferSplit(rawData, '\n')
-        if(lines.length < 4) {
-            throw new HttpError(502, "Bad Gateway")
-        }
-        let ret = {statusCode: 200, statusMsg: "", version: "", headers: {}, body: null};
-        let head = lines[0].toString('utf-8').trim();
-        let heads = head.split(' ');
-        if(heads.length < 2) {
-            throw new HttpError(502, "Bad Gateway")
-        }
-        ret.version = heads[0].trim();
-        ret.statusCode = parseInt(heads[1].trim());
-        if(heads.length === 2) {
-            ret.statusMsg = http_status_to_message(ret.statusCode);
-        } else {
-            ret.statusMsg = heads.slice(2, heads.length).join(' ').trim();
-        }
-
-        let remain = null;
-        for(let i = 1; i < lines.length; i++) {
-            let l = lines[i].toString('utf-8').trim();
-            if(l === '') {
-                if(i === lines.length - 1) {
-                    return ;
-                }
-                remain = bufferJoin(lines.slice(i + 1, lines.length), '\n');
-                break ;
-            }
-            let kv = l.indexOf(':');
-            if(l <= 0) {
-                throw new HttpError(502, "Bad Gateway")
-            }
-            ret.headers[l.substring(0, kv).trim().toLowerCase()] = l.substring(kv + 1, l.length).trim();
-        }
-        ret.body = remain;
-        return ret;
-    }
-    
-    /**
-     * @private
-     * @param {Buffer} rawData 
-     * @returns {{url:String, queries: {}}}
-    */
-    parseContent(rawData) {
-        if(this.chunked) {
-            this.chunkedBuf = Buffer.concat([this.chunkedBuf, rawData]);
-            while(true) {
-                let len = this.chunkedBuf.length;
-                let lf = this.chunkedBuf.indexOf('\n')
-                if (lf <= 0) {
-                    return 
-                }
-                let chunkedLen = parseInt(this.chunkedBuf.slice(0, lf).toString('utf-8').trim(), 16); 
-                if (chunkedLen === 0) {
-                    this.finished = true;
-                    return ;
-                }
-                if((len - lf - 1) < chunkedLen) {
-                    return ;
-                } else {
-                    this.body = Buffer.concat([this.body, this.chunkedBuf.slice(lf+1, lf+1+chunkedLen)]);
-                    this.chunkedBuf = this.chunkedBuf.slice(lf+1+chunkedLen, len);
-                    let off = 0;
-                    if(this.chunkedBuf[off] === 13) {
-                        off++;
-                    }
-                    if(this.chunkedBuf[off] === 10) {
-                        off++;
-                    }
-                    if(off > 0) {
-                        this.chunkedBuf = this.chunkedBuf.slice(off, len);
-                    }
-                }
-            }
-        } else {
-            if(this.body.length + rawData.length > this.contentLength) {
-                this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
-            } else {
-                this.body = Buffer.concat([this.chunkedBuf, rawData]);
-            }
-            if(this.body.length >= this.contentLength) {
-                this.finished = true;
-            }
-        }
+        this.init();
     }
 
     /**
@@ -587,16 +509,18 @@ class HttpResponse {
 function createHttpServer(options = null, callback, errorCallback) {
     let chMap = {};
     /**
-     * @param {int} id 
+     * @param {Channel} ch 
      * @returns {{request: HttpRequest, response: HttpResponse}}
     */
-    function getHttpPair(id) {
+    function getHttpPair(ch) {
+        let id = ch.getId();
         if(id in chMap) {
             return chMap[id];
         } else {
             let pair = {
-                request: new HttpRequest(), response: new HttpResponse()
+                request: new HttpRequest(), response: null
             }
+            pair.response = new HttpResponse(pair.request, ch);
             chMap[id] = pair;
             return pair;
         }
@@ -606,36 +530,45 @@ function createHttpServer(options = null, callback, errorCallback) {
     }
     let server = new ServerChannel(options.sslCtx);
     server.on('read', (ch, data) => {
-        let {request, response} = getHttpPair(ch.getId());
+        let {request, response} = getHttpPair(ch);
         try {
             if(!request.headParsed) {
                 request.parse(data);
             } else {
                 request.parseContent(data);
             }
-            if(request.finished) {
+        } catch(ex) {
+            response.setContentType("text/plain");
+            response.setStatusCode(400);
+            response.sendBody("400 Bad Request");
+            ch.write(response.toBuffer());
+            return ;
+        }
+        if(request.finished) {
+            response.version = request.version;
+            response.setContentType("text/html");
+            try {
                 if(callback) {
                     callback(request, response);
+                } else {
+                    response.sendBody('<html><title>Archer</title><body><h3>Welcome to Archer</h3></body></html>');
                 }
-                response.version = request.version;
-                ch.write(response.toBuffer());
-                if(request.version === "HTTP/1.0") {
-                    ch.close();
+            } catch(err) {
+                response.setStatusCode(500);
+                response.sendBody('<html><title>Archer</title><body><h3>Internal Server Error</h3></body></html>');
+                if(errorCallback) {
+                    errorCallback(err);
+                } else {
+                    console.error(err);
                 }
             }
-        } catch(err) {
-            response.setContentType("text/plain");
-            response.setStatusCode(503);
-            response.setBody("503 Service Error");
-            ch.write(response.toBuffer());
-            server.on_error(ch, err)
         }
-        request.init();
-        response.init();
     });
     server.on("error", (ch, err) => {
         if(errorCallback) {
             errorCallback(err);
+        } else {
+            console.error(err);
         }
     });
     server.listen(options.host, options.port)
@@ -726,20 +659,6 @@ class Response {
                 this.headers[k.toLowerCase()] = headers[k];
             }
         }
-    }
-
-    /**
-     * @param {Buffer|String} body 
-    */
-    setBody(body) {
-        let buf;
-        if (body instanceof Buffer) {
-            buf = body;
-        } else {
-            buf = Buffer.from(body);
-        }
-        this.setContentLength(buf.length);
-        this.body = buf;
     }
 
     /**

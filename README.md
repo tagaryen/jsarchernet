@@ -24,7 +24,7 @@ const {http, HttpError} = require('jsarchernet')
 
 http.createHttpServer({host:"127.0.0.1", posrt:9607,sslCtx:null} (req, res) => {
     console.log(req.body.toString('utf-8'));
-    res.setBody('{"nihao":"hello"}');
+    res.sendBody('{"nihao":"hello"}');
 }, (err) => {
     console.error(err);
 })
