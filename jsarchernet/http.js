@@ -112,7 +112,7 @@ class StreamBody {
     end() {
         this.ch.write(Buffer.from('\r\n0\r\n\r\n'));
         this.ch = undefined;
-        this.response.reset();
+        this.response.final();
     }
 }
 
@@ -121,21 +121,6 @@ class HttpRequest {
         this.method = "GET";
         this.url = "/";
         this.version = "HTTP/1.1";
-        this.queries = {};
-        this.headers = {'content-type':'application/none','content-length':"0"};
-        this.body = Buffer.alloc(0);
-        this.contentType = this.headers['content-type'];
-        this.contentLength = -1;
-        this.chunked = false;
-        this.chunkedBuf = Buffer.alloc(0);
-        this.headParsed = false;
-        this.finished = false;
-    }
-
-    init() {
-        this.method = "GET";
-        this.url = "/";
-        this.version = "HTTP/1.0";
         this.queries = {};
         this.headers = {'content-type':'application/none','content-length':"0"};
         this.body = Buffer.alloc(0);
@@ -372,27 +357,6 @@ class HttpResponse {
         this.request = request;
         this.ch = ch;
     }
-
-    /**
-     * @private
-    */
-    init() {
-        this.version = "HTTP/1.1";
-        this.statusCode = 200;
-        this.statusMsg = http_status_to_message(this.statusCode);
-        this.contentType = "application/none";
-        this.headers = {
-            'server': "ArcherNet/Nodejs",
-            'connection': "close",
-            'date': new Date().toUTCString(),
-            'content-type': this.contentType
-        }
-        this.contentLength = 0;
-        this.chunked = false;
-        this.chunkedBuf = null;
-        this.body = Buffer.alloc(0);
-        this.request.init()
-    }
     
     /**
      * @param {int} code 
@@ -466,17 +430,15 @@ class HttpResponse {
         this.setContentLength(buf.length);
         this.body = buf;
         this.ch.write(this.toBuffer());
-        this.reset();
+        this.final();
     }
 
-    reset() {
+    final() {
         if(this.version === 'HTTP/1.0') {
-            this.request = undefined;
             this.ch.close();
-            this.ch = undefined;
-            return ;
         }
-        this.init();
+        this.request = undefined;
+        this.ch = undefined;
     }
 
     /**
@@ -507,30 +469,31 @@ class HttpResponse {
  * @returns {void}
 */
 function createHttpServer(options = null, callback, errorCallback) {
-    let chMap = {};
-    /**
-     * @param {Channel} ch 
-     * @returns {{request: HttpRequest, response: HttpResponse}}
-    */
-    function getHttpPair(ch) {
-        let id = ch.getId();
-        if(id in chMap) {
-            return chMap[id];
-        } else {
-            let pair = {
-                request: new HttpRequest(), response: null
-            }
-            pair.response = new HttpResponse(pair.request, ch);
-            chMap[id] = pair;
-            return pair;
-        }
-    }
+    // let chMap = {};
+    // /**
+    //  * @param {Channel} ch 
+    //  * @returns {{request: HttpRequest, response: HttpResponse}}
+    // */
+    // function getHttpPair(ch) {
+    //     let id = ch.getId();
+    //     if(id in chMap) {
+    //         return chMap[id];
+    //     } else {
+    //         let pair = {
+    //             request: new HttpRequest(), response: null
+    //         }
+    //         pair.response = new HttpResponse(pair.request, ch);
+    //         chMap[id] = pair;
+    //         return pair;
+    //     }
+    // }
     if(!options) {
         options = {host: "127.0.0.1", port: 9607, sslCtx: null};
     }
     let server = new ServerChannel(options.sslCtx);
     server.on('read', (ch, data) => {
-        let {request, response} = getHttpPair(ch);
+        let request = new HttpRequest();
+        let response = new HttpResponse(request, ch);
         try {
             if(!request.headParsed) {
                 request.parse(data);
