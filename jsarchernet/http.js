@@ -295,9 +295,9 @@ class HttpRequest {
                 return;
             }
             if(this.body.length + rawData.length > this.contentLength) {
-                this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
+                this.body = Buffer.concat([this.body, rawData.slice(0, this.contentLength - this.body.length)]);
             } else {
-                this.body = Buffer.concat([this.chunkedBuf, rawData]);
+                this.body = Buffer.concat([this.body, rawData]);
             }
             if(this.body.length >= this.contentLength) {
                 this.finished = true;
@@ -340,7 +340,7 @@ class HttpResponse {
      * @param {Channel} ch 
     */
     constructor(request, ch) {
-        this.version = "HTTP/1.1";
+        this.version = "HTTP/1.0";
         this.statusCode = 200;
         this.statusMsg = http_status_to_message(this.statusCode);
         this.contentType = "application/none";
@@ -657,7 +657,6 @@ class Response {
                 this.contentLength = 0;
             }
             this.finished = false;
-    
             if(ret.body) {
                 this.parseContent(ret.body)
             }
@@ -756,9 +755,9 @@ class Response {
                 return;
             }
             if(this.body.length + rawData.length > this.contentLength) {
-                this.body = Buffer.concat([this.chunkedBuf, rawData.slice(0, this.contentLength - this.body.length)]);
+                this.body = Buffer.concat([this.body, rawData.slice(0, this.contentLength - this.body.length)]);
             } else {
-                this.body = Buffer.concat([this.chunkedBuf, rawData]);
+                this.body = Buffer.concat([this.body, rawData]);
             }
             if(this.body.length >= this.contentLength) {
                 this.finished = true;
