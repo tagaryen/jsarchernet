@@ -13,7 +13,7 @@ const fs = require('fs')
 //         fs.appendFileSync('./tmp.txt', chunk, 'utf-8');
 //     }
 // );
-let res = http.request("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js", 
+let res = http.request("https://www.aliyun.com", 
     {
         method: "GET"
     }
