@@ -122,9 +122,9 @@ class HttpRequest {
         this.url = "/";
         this.version = "HTTP/1.1";
         this.queries = {};
-        this.headers = {'content-type':'application/none','content-length':"0"};
+        this.headers = {};
         this.body = Buffer.alloc(0);
-        this.contentType = this.headers['content-type'];
+        this.contentType = null;
         this.contentLength = -1;
         this.chunked = false;
         this.chunkedBuf = Buffer.alloc(0);
@@ -325,7 +325,7 @@ class HttpRequest {
         }
         send += "\r\n";
         let buf = Buffer.from(send, 'utf-8');
-        if(this.contentLength > 0) {
+        if(this.body) {
             buf = Buffer.concat([buf, this.body]);
         }
         return buf;
@@ -852,6 +852,7 @@ function parseRequest(url, options) {
                 request.headers["content-type"] = "application/json";
             }
         }
+        request.contentLength = request.body.length;
         request.headers["content-length"] = request.body.length;
     }
     if(ssl && !options.sslCtx) {
