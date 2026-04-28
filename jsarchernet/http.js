@@ -852,7 +852,7 @@ function parseRequest(url, options) {
                 request.headers["content-type"] = "application/json";
             }
         }
-        request.headers["content-length"] = options.body.length;
+        request.headers["content-length"] = request.body.length;
     }
     if(ssl && !options.sslCtx) {
         options.sslCtx = new SslContext();
