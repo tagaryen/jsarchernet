@@ -6,6 +6,9 @@ name: jsarchernet
 on:
   release:
     types: [created]
+  push:
+    branches:
+      - main
 jobs:
   publish:
     runs-on: ubuntu-latest
