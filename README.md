@@ -22,7 +22,7 @@ let res = http.request("https://www.zhihu.com",
 console.log(res.statusCode)
 console.log(res.body.toString('utf-8'))
 ```
-http server
+http(s) server 
 ``` js
 const {http, HttpError} = require('jsarchernet')
 
@@ -35,14 +35,20 @@ http.createHttpServer({host:"127.0.0.1", posrt:9607,sslCtx:null} (req, res) => {
 ```
 gmssl
 ``` js
-const {SslContext} = require('jsarchernet')
+const {SslContext, http, HttpError} = require('jsarchernet')
 
-let ssl_ctx = new SslContext({
-        verifyPeer: true,
-        ca: fs.readFileSync('ca.crt'), //Buffer
-        crt: fs.readFileSync('sm2.crt'),
-        key: fs.readFileSync('sm2.key'),
-        enCrt: fs.readFileSync('encrypted_sm2.crt'),
-        enKey: fs.readFileSync('encrypted_sm2.key')
-    })
+let sslCtx = new SslContext({
+    verifyPeer: true,
+    ca: fs.readFileSync('ca.crt'), //Buffer
+    crt: fs.readFileSync('sm2.crt'),
+    key: fs.readFileSync('sm2.key'),
+    enCrt: fs.readFileSync('encrypted_sm2.crt'),
+    enKey: fs.readFileSync('encrypted_sm2.key')
+})
+http.createHttpServer({host:"127.0.0.1", posrt:9607,sslCtx:sslCtx} (req, res) => {
+    console.log(req.body.toString('utf-8'));
+    res.sendBody('{"nihao":"hello"}');
+}, (err) => {
+    console.error(err);
+})
 ```
