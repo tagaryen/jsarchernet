@@ -1026,6 +1026,7 @@ module.exports = {
     http: {
         createHttpServer,
         request,
+        get,
         post,
         put,
         del,
