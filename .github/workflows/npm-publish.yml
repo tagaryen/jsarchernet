@@ -11,7 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: npm version patch
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+      - run: |
+          git config --global user.name "tagaryen"
+          git config --global user.email "2564928358@qq.com"
       - run: npm run build
       - run: npm publish
         env:
