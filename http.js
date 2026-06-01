@@ -900,6 +900,77 @@ function request(url, options) {
     return req.response;
 }
 
+function handleBody(options, body) {
+    if(body) {
+        if(typeof body === 'string') {
+            options.body = Buffer.from(body);
+        } else if(Buffer.isBuffer(body)) {
+            options.body = body;
+        } else {
+            options.body = Buffer.from(JSON.stringify(body));
+        }
+    }
+}
+
+/**
+ * @param {String} url 
+ * @param {Object} headers 
+ * @returns {Response}
+*/
+function get(url, headers) {
+    let options = {
+        method: "GET",
+        headers: headers
+    }
+    return request(url, options);
+}
+
+/**
+ * @param {String} url 
+ * @param {Object} headers 
+ * @param {Any} body 
+ * @returns {Response}
+*/
+function post(url, headers, body) {
+    let options = {
+        method: "POST",
+        headers: headers
+    }
+    handleBody(options, body);
+    return request(url, options);
+}
+
+/**
+ * @param {String} url 
+ * @param {Object} headers 
+ * @param {Any} body 
+ * @returns {Response}
+*/
+function put(url, headers, body) {
+    let options = {
+        method: "PUT",
+        headers: headers
+    }
+    handleBody(options, body);
+    return request(url, options);
+
+}
+
+/**
+ * @param {String} url 
+ * @param {Object} headers 
+ * @param {Any} body 
+ * @returns {Response}
+*/
+function del(url, headers, body) {
+    let options = {
+        method: "DELETE",
+        headers: headers
+    }
+    handleBody(options, body);
+    return request(url, options);
+}
+
 /**
  * @param {String} url 
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer,formData:Object}} options 
@@ -955,6 +1026,9 @@ module.exports = {
     http: {
         createHttpServer,
         request,
+        post,
+        put,
+        del,
         streamRequest
     }
 }

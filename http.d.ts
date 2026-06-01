@@ -55,6 +55,33 @@ declare function request(url: string, options: {
 }): Response;
 /**
  * @param {String} url
+ * @param {Object} headers
+ * @returns {Response}
+*/
+declare function get(url: string, headers: {}): Response;
+/**
+ * @param {String} url
+ * @param {Object} headers
+ * @param {Any} body
+ * @returns {Response}
+*/
+declare function post(url: string, headers: {}, body: any): Response;
+/**
+ * @param {String} url
+ * @param {Object} headers
+ * @param {Any} body
+ * @returns {Response}
+*/
+declare function put(url: string, headers: {}, body: any): Response;
+/**
+ * @param {String} url
+ * @param {Object} headers
+ * @param {Any} body
+ * @returns {Response}
+*/
+declare function del(url: string, headers: {}, body: any): Response;
+/**
+ * @param {String} url
  * @param {{method: String, headers:Object,sslCtx:SslContext,body:Buffer|String|Object,formData:Object}} options
  * @param {function(Response, err):void} onresponse
  * @param {function(Buffer):void} ondata
@@ -70,6 +97,10 @@ import SslContext = require("./sslcontext");
 export declare namespace http {
     export { createHttpServer };
     export { request };
+    export { get };
+    export { post };
+    export { put };
+    export { del };
     export { streamRequest };
 }
 export {};

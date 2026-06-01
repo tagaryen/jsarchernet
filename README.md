@@ -8,6 +8,10 @@ npm install jsarchernet
 http client  
 ``` js
 const {http, HttpError} = require('jsarchernet')
+const fs = require('fs')
+
+let res = http.get("https://www.aliyun.com", null);
+fs.appendFileSync('./tmp.html', res.body);
 
 let res = http.request("https://www.zhihu.com", 
     {
